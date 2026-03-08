@@ -10,11 +10,13 @@ import (
 	"winSettingsGui/internal/config"
 	"winSettingsGui/internal/dialog"
 	"winSettingsGui/internal/power"
+	"winSettingsGui/internal/scheduler"
 )
 
 var (
-	appConfig config.Config
-	iconData  []byte
+	appConfig       config.Config
+	iconData        []byte
+	globalScheduler *scheduler.Scheduler
 )
 
 type timeoutGroup struct {
@@ -40,6 +42,11 @@ func Run(icon []byte) {
 	iconData = icon
 	cfg, _ := config.Load()
 	appConfig = cfg
+
+	globalScheduler = scheduler.New()
+	globalScheduler.UpdateJobs(appConfig.ScheduledJobs)
+	globalScheduler.Start()
+
 	systray.Run(onReady, onExit)
 }
 
@@ -51,7 +58,11 @@ func onReady() {
 	buildMenu()
 }
 
-func onExit() {}
+func onExit() {
+	if globalScheduler != nil {
+		globalScheduler.Stop()
+	}
+}
 
 func buildMenu() {
 	mPower := systray.AddMenuItem("Настройки питания", "")
@@ -63,6 +74,7 @@ func buildMenu() {
 
 	systray.AddSeparator()
 
+	mSchedule := systray.AddMenuItem("Планирование", "Управление расписанием")
 	mSettings := systray.AddMenuItem("Настройки", "Настроить таймауты")
 	mAutostart := systray.AddMenuItemCheckbox("Автозапуск", "Запускать при старте Windows", autostart.IsEnabled())
 	mAbout := systray.AddMenuItem("О программе", "")
@@ -70,6 +82,15 @@ func buildMenu() {
 	systray.AddSeparator()
 
 	mQuit := systray.AddMenuItem("Выход", "Закрыть приложение")
+
+	mSchedule.Click(func() {
+		newCfg, changed := dialog.ShowSchedule(appConfig)
+		if changed {
+			appConfig = newCfg
+			_ = config.Save(appConfig)
+			globalScheduler.UpdateJobs(appConfig.ScheduledJobs)
+		}
+	})
 
 	mSettings.Click(func() {
 		newCfg, ok := dialog.ShowSettings(appConfig)
