@@ -9,10 +9,11 @@ import (
 )
 
 type Scheduler struct {
-	mu        sync.Mutex
-	jobs      []config.ScheduledJob
-	lastFired string
-	stopCh    chan struct{}
+	mu             sync.Mutex
+	jobs           []config.ScheduledJob
+	lastFired      string
+	stopCh         chan struct{}
+	OnJobExecuted  func()
 }
 
 func New() *Scheduler {
@@ -72,6 +73,10 @@ func (s *Scheduler) tick(now time.Time) {
 
 	for _, j := range toExec {
 		executeJob(j)
+	}
+
+	if len(toExec) > 0 && s.OnJobExecuted != nil {
+		s.OnJobExecuted()
 	}
 }
 

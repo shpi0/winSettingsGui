@@ -45,6 +45,7 @@ func Run(icon []byte) {
 
 	globalScheduler = scheduler.New()
 	globalScheduler.UpdateJobs(appConfig.ScheduledJobs)
+	globalScheduler.OnJobExecuted = func() { rebuildAllGroups() }
 	globalScheduler.Start()
 
 	systray.Run(onReady, onExit)
